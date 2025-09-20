@@ -2,45 +2,111 @@
 using System.IO;
 using SDL2;
 
-
 namespace CHIP_8_SDL;
 
-public class Program
+public static class Program
 {
+   static IntPtr renderer;
+   static IntPtr font;
+
     public static void Main()
     {
-        if (SDL.SDL_Init(SDL.SDL_INIT_VIDEO) < 0)
-        {
-            Console.WriteLine($"SDL could not initialize! Error: {SDL.SDL_GetError()}");
-            return;
-        }
+        CPU chip = new CPU();
+        chip.debugLoadRom("/home/zaid/Downloads/3-corax+.ch8");
+        DoRender(chip);
+    }
+
+    static void DoRender(CPU c)
+    {
+        // Initialize SDL and TTF
+        SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
+        SDL_ttf.TTF_Init();
 
         IntPtr window = SDL.SDL_CreateWindow(
-            "Holy shit lmao",
+            "we got memory now???!!?!?!",
             SDL.SDL_WINDOWPOS_CENTERED,
             SDL.SDL_WINDOWPOS_CENTERED,
-            800, 600,
+            1400, 720,
             SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN
         );
+
+        renderer = SDL.SDL_CreateRenderer(window, -1,
+            SDL.SDL_RendererFlags.SDL_RENDERER_ACCELERATED |
+            SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
+        );
+
+        // Load font (change path if needed)
+        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15);
+
         bool quit = false;
         SDL.SDL_Event e;
-
         while (!quit)
         {
-            while (SDL.SDL_PollEvent(out e) == 1)
+            while (SDL.SDL_PollEvent(out e) != 0)
             {
                 if (e.type == SDL.SDL_EventType.SDL_QUIT)
-                {
                     quit = true;
-                }
             }
 
+            SDL.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL.SDL_RenderClear(renderer);
+            
+            int bytesPerLine = 64; 
+            int startX = 25;        
+            int startY = 25;       
+            int lineHeight = 13;   
+            
+            RenderMemory(c, bytesPerLine, startX, startY, lineHeight);
+            
+
+            SDL.SDL_RenderPresent(renderer);
             SDL.SDL_Delay(16); // ~60 FPS
         }
 
+        // cleanup
+        SDL_ttf.TTF_CloseFont(font);
+        SDL.SDL_DestroyRenderer(renderer);
         SDL.SDL_DestroyWindow(window);
+        SDL_ttf.TTF_Quit();
         SDL.SDL_Quit();
     }
+    
+    static void RenderMemory(CPU c, int bytesPerLine, int startX, int startY, int lineHeight)
+    {
+        int totalBytes = 4096;
+        for (int row = 0; row < totalBytes / bytesPerLine; row++)
+        {
+            int offset = row * bytesPerLine;
+
+            // Build one line of memory in hex
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            for (int col = 0; col < bytesPerLine; col++)
+            {
+                byte temp = c.dumpMemory(offset + col);
+                sb.Append(temp.ToString("X2")).Append(""); // hex with space
+            }
+
+            // Render the entire line once
+            RenderText(sb.ToString(), startX, startY + row * lineHeight);
+        }
+    }
+    
+    static void RenderText(string message, int x, int y)
+    {
+        SDL.SDL_Color white = new SDL.SDL_Color { r = 255, g = 255, b = 255, a = 255 };
+        IntPtr surface = SDL_ttf.TTF_RenderText_Solid(font, message, white);
+        IntPtr texture = SDL.SDL_CreateTextureFromSurface(renderer, surface);
+
+        SDL.SDL_QueryTexture(texture, out _, out _, out int w, out int h);
+        SDL.SDL_Rect dstRect = new SDL.SDL_Rect { x = x, y = y, w = w, h = h };
+
+        SDL.SDL_RenderCopy(renderer, texture, IntPtr.Zero, ref dstRect);
+
+        SDL.SDL_FreeSurface(surface);
+        SDL.SDL_DestroyTexture(texture);
+    }
+
+
 }
 
 public class CPU
@@ -103,6 +169,10 @@ public class CPU
                 memory[0x200 + i] = file[i]; //load rom from our starting address
             }
         }
+        else
+        {
+            Console.WriteLine("File not found buddy");
+        }
     }
 
     void LoadFont()
@@ -111,6 +181,16 @@ public class CPU
         {
             memory[0x50 + i] = fontSet[i]; //load font from the font start address
         }
+    }
+
+    public byte dumpMemory(int ind)
+    {
+        return memory[ind];
+    }
+
+    public void debugLoadRom(string filepath)
+    {
+        LoadROM(filepath);
     }
     
     
