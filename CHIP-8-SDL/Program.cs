@@ -8,11 +8,12 @@ public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
+   static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
 
     public static void Main()
     {
         CPU chip = new CPU();
-        chip.debugLoadRom("/home/zaid/Downloads/3-corax+.ch8");
+        chip.debugLoadRom(romPath);
         DoRender(chip);
     }
 
@@ -36,7 +37,8 @@ public static class Program
         );
 
         // Load font (change path if needed)
-        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15);
+        //font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
+        font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
 
         bool quit = false;
         SDL.SDL_Event e;
