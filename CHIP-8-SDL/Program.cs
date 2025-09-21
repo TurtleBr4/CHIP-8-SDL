@@ -8,7 +8,9 @@ public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
-   static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
+   //static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
+   static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
+
 
     public static void Main()
     {
@@ -24,7 +26,7 @@ public static class Program
         SDL_ttf.TTF_Init();
 
         IntPtr window = SDL.SDL_CreateWindow(
-            "we got memory now???!!?!?!",
+            "render that video array oorah",
             SDL.SDL_WINDOWPOS_CENTERED,
             SDL.SDL_WINDOWPOS_CENTERED,
             1400, 720,
@@ -37,8 +39,8 @@ public static class Program
         );
 
         // Load font (change path if needed)
-        //font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
-        font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
+        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
+        //font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
 
         bool quit = false;
         SDL.SDL_Event e;
@@ -54,12 +56,12 @@ public static class Program
             SDL.SDL_RenderClear(renderer);
             
             int bytesPerLine = 64; 
-            int startX = 25;        
+            int startX = (1400/4) + 40;        
             int startY = 25;       
-            int lineHeight = 13;   
+            int lineHeight = 10;   
             
             RenderMemory(c, bytesPerLine, startX, startY, lineHeight);
-            
+            //RenderScreen(c, startX, startY, lineHeight);
 
             SDL.SDL_RenderPresent(renderer);
             SDL.SDL_Delay(16); // ~60 FPS
@@ -108,6 +110,21 @@ public static class Program
         SDL.SDL_DestroyTexture(texture);
     }
 
+    static void RenderScreen(CPU c, int x, int y, int space)
+    {
+        for (int row = 0; row < 64; row++)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            for (int col = 0; col < 32; col++)
+            {
+                byte temp = c.debugShowScreen(row, col);
+                
+                sb.Append(temp.ToString("X2")).Append(""); // hex with space
+            }
+            RenderText(sb.ToString(), x, y + row * space);
+        }
+    }
+
 
 }
 
@@ -121,7 +138,7 @@ public class CPU
     byte[,] gfx = new byte[64, 32]; //graphics representation, 2048 pixels
     private byte delayTimer;
     private byte soundTimer;
-    byte[] stack = new byte[16];
+    ushort[] stack = new ushort[16];
     private byte sp; //stack pointer
     byte[] key = new byte[16]; //keeps the current state of the key
     
@@ -194,17 +211,31 @@ public class CPU
     {
         LoadROM(filepath);
     }
-    
-    
+
+    public byte debugShowScreen(int indx, int indy)
+    {
+        return gfx[indx, indy];
+    }
     
     
     
     //note that Vx is a stand-in for our registers, where x is 0-F
     
     public void CLS(){ Array.Clear(gfx); } //CLS clear display
-    public void RET(){} //RET return from routine
+
+    public void RET() //RET return from routine
+    {
+        sp--;
+        pc = stack[sp];
+    } 
     public void JUMP(ushort addr){pc = addr;} //JP, jump to location nnn
-    public void CALL(){}
+
+    public void CALL(ushort addr)
+    {
+        sp++;
+        stack[15] = pc;
+        pc = addr;
+    }
     public void SE_XKK(byte reg, byte kk){if(reg == kk){pc += 2;}} //skip if vx = a byte
     public void SNE_XKK(){} //skip if vx != a byte
     public void SE_XY(){} //skip if vx = vy
@@ -215,6 +246,9 @@ public class CPU
     public void AND_XY(){} //set vx to vx AND vy
     public void XOR_XY(){} //set vx to vx XOR vy (exclusive or)
     public void ADD_XY(){} //add two registers, if greater than 255 VF is set to 1
-    public void SUB_XY(){} //subtract two registers,
+    public void SUB_XY(){} //subtract two registers (vx-vy stored in vx), if vx > vy, vf is 1. otherwise 0
+    public void SHR_X(){} //set vx to vx SHR 1
+    public void SUBN_XY(){} //set vx = vy- vx, vf will NOT borrow
+    public void SHL_X(){} //set vx = vx SHL 1
     
 }
