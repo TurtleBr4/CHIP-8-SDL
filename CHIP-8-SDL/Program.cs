@@ -60,8 +60,8 @@ public static class Program
             int startY = 25;       
             int lineHeight = 10;   
             
-            RenderMemory(c, bytesPerLine, startX, startY, lineHeight);
-            //RenderScreen(c, startX, startY, lineHeight);
+            //RenderMemory(c, bytesPerLine, startX, startY, lineHeight);
+            RenderScreen(c, startX, startY, lineHeight);
 
             SDL.SDL_RenderPresent(renderer);
             SDL.SDL_Delay(16); // ~60 FPS
@@ -236,19 +236,128 @@ public class CPU
         stack[15] = pc;
         pc = addr;
     }
-    public void SE_XKK(byte reg, byte kk){if(reg == kk){pc += 2;}} //skip if vx = a byte
-    public void SNE_XKK(){} //skip if vx != a byte
-    public void SE_XY(){} //skip if vx = vy
-    public void LD_XKK(){} //sets vx to a byte
-    public void ADD_XKK(){} //Vx = Vx + a byte
-    public void LD_XY(){} //set vx to vy
-    public void OR_XY(){} //set vx to vx OR vy
-    public void AND_XY(){} //set vx to vx AND vy
-    public void XOR_XY(){} //set vx to vx XOR vy (exclusive or)
-    public void ADD_XY(){} //add two registers, if greater than 255 VF is set to 1
-    public void SUB_XY(){} //subtract two registers (vx-vy stored in vx), if vx > vy, vf is 1. otherwise 0
-    public void SHR_X(){} //set vx to vx SHR 1
-    public void SUBN_XY(){} //set vx = vy- vx, vf will NOT borrow
+
+    public void SE_XKK(byte reg, byte kk) //skip if vx = a byte
+    {
+        if (V[reg] == kk)
+        {
+            pc += 2;
+        }
+    } 
+
+    public void SNE_XKK(byte reg, byte kk) //skip if vx != a byte
+    {
+        if (V[reg] != kk)
+        {
+            pc += 2;
+        }
+    }
+
+    public void SE_XY(byte reg1, byte reg2)
+    {
+        if (V[reg1] == V[reg2])
+        {
+            pc += 2;
+        }
+    } //skip if vx = vy
+
+    public void LD_XKK(byte reg, byte kk)
+    {
+        V[reg] = kk;
+    } //sets vx to a byte
+
+    public void ADD_XKK(byte reg, byte kk)
+    {
+        V[reg] = (byte)(V[reg] + kk);
+    } //Vx = Vx + a byte
+
+    public void LD_XY(byte reg1, byte reg2)
+    {
+        V[reg1] = V[reg2];
+    } //set vx to vy
+
+    public void OR_XY(byte reg1, byte reg2)
+    {
+        V[reg1] = (byte)(V[reg1] | V[reg2]); //c# bitwise or is |
+    } //set vx to vx OR vy
+
+    public void AND_XY(byte reg1, byte reg2)
+    {
+        V[reg1] = (byte)(V[reg1] & V[reg2]);
+    } //set vx to vx AND vy
+
+    public void XOR_XY(byte reg1, byte reg2)
+    {
+        V[reg1] = (byte)(V[reg1] ^ V[reg2]);
+    } //set vx to vx XOR vy (exclusive or)
+
+    public void ADD_XY(byte reg1, byte reg2)
+    {
+        if (V[reg1] + V[reg2] > 255)
+        {
+            V[15] = 1;
+        }
+        else
+        {
+            V[15] = 0;
+        }
+        V[reg1] = (byte)(V[reg1] + V[reg2]);
+    } //add two registers, if greater than 255 VF is set to 1
+
+    public void SUB_XY(byte reg1, byte reg2)
+    {
+        if (V[reg1] > V[reg2])
+        {
+            V[15] = 1;
+        }
+        else
+        {
+            V[15] = 0;
+        }
+        V[reg1] = (byte)(V[reg1] - V[reg2]);
+    } //subtract two registers (vx-vy stored in vx), if vx > vy, vf is 1. otherwise 0
+
+    public void SHR_X(byte reg1, byte reg2)
+    {
+        
+    } //set vx to vx SHR 1
+
+    public void SUBN_XY(byte reg1, byte reg2)
+    {
+        if (V[reg2] > V[reg1])
+        {
+            V[15] = 1;
+        }
+        else
+        {
+            V[15] = 0;
+        }
+        V[reg1] = (byte)(V[reg2] - V[reg1]);
+    } //set vx = vy- vx, vf will NOT borrow
     public void SHL_X(){} //set vx = vx SHL 1
-    
+
+    public void SNE_XY(byte reg1, byte reg2) //skip if vx != vy
+    {
+        if (V[reg1] != V[reg2])
+        {
+            pc += 2;
+        }
+    }
+
+    public void LD_IADR(ushort addr) //sets the index register to an address
+    {
+        i = addr;
+    }
+
+    public void JP_VADR(ushort addr)
+    {
+        pc = (ushort)(addr + V[0]);
+    }
+
+    public void RND(byte reg, byte kk) //set vx to a random byte AND kk
+    {
+        Random rnd = new Random();
+        byte r = (byte)rnd.Next(0, 255);
+        V[reg] = (byte)(r & kk);
+    }
 }
