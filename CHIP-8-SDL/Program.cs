@@ -230,6 +230,11 @@ public class CPU
     {
         string translatedOpCode = opcode.ToString("X4");
         Console.WriteLine(translatedOpCode); //for debugging
+        string tcode;
+        byte treg;
+        byte treg2;
+        byte tkk;
+        //i could do fancy bitwise operations but im dumb, so abuse stringbuilder
         switch (translatedOpCode[0]) //i feel like yandev typing this out
         {
             case '0':
@@ -241,26 +246,33 @@ public class CPU
                 else if (translatedOpCode[3] == 'E')
                 {
                     Console.WriteLine("RET");
-                    //RET();
+                    RET();
                 }
                 break;
-            case (char)(1):
+            case '1':
+                tcode = translatedOpCode.Substring(1);
+                JUMP(byte.Parse(tcode));
                 break;
-            case (char)(2):
+            case '2':
+                tcode = translatedOpCode.Substring(1);
+                CALL(byte.Parse(tcode));
                 break;
-            case (char)(3):
+            case '3':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                tkk = byte.Parse(translatedOpCode.Substring(2));
+                SE_XKK(treg, tkk);
                 break;
-            case (char)(4):
+            case '4':
                 break;
-            case (char)(5):
+            case '5':
                 break;
-            case (char)(6):
+            case '6':
                 break;
-            case (char)(7):
+            case '7':
                 break;
-            case (char)(8):
+            case '8':
                 break;
-            case (char)(9):
+            case '9':
                 break;
             case 'A':
                 break;
@@ -287,15 +299,19 @@ public class CPU
 
     public void RET() //RET return from routine
     {
-        sp--;
         pc = stack[sp];
-    } 
-    public void JUMP(ushort addr){pc = addr;} //JP, jump to location nnn
+        sp--;
+    }
+
+    public void JUMP(ushort addr)
+    {
+        pc = addr;
+    } //JP, jump to location nnn
 
     public void CALL(ushort addr)
     {
+        stack[sp] = pc;
         sp++;
-        stack[15] = pc;
         pc = addr;
     }
 
@@ -379,9 +395,10 @@ public class CPU
         V[reg1] = (byte)(V[reg1] - V[reg2]);
     } //subtract two registers (vx-vy stored in vx), if vx > vy, vf is 1. otherwise 0
 
-    public void SHR_X(byte reg1, byte reg2)
+    public void SHR_X(byte reg)
     {
-        
+        V[15] = (byte)(V[reg] & 0x1u);
+        V[reg] >>= 1;
     } //set vx to vx SHR 1
 
     public void SUBN_XY(byte reg1, byte reg2)
@@ -396,7 +413,12 @@ public class CPU
         }
         V[reg1] = (byte)(V[reg2] - V[reg1]);
     } //set vx = vy- vx, vf will NOT borrow
-    public void SHL_X(){} //set vx = vx SHL 1
+
+    public void SHL_X(byte reg)
+    {
+        V[15] = (byte)((V[reg] & 0x80u) >> 7);
+        V[reg] <<= 1;
+    } //set vx = vx SHL 1
 
     public void SNE_XY(byte reg1, byte reg2) //skip if vx != vy
     {
@@ -422,16 +444,55 @@ public class CPU
         byte r = (byte)rnd.Next(0, 256);
         V[reg] = (byte)(r & kk);
     }
-    
-    public void DRAW(){}
+
+    public void DRAW(byte reg1, byte reg2, byte h)
+    {
+        byte xPos = (byte)(V[reg1] % 64);
+        byte yPos = (byte)(V[reg2] % 32);
+        V[15] = 0;
+
+        for (int row = 0; row < h; row++)
+        {
+            byte spriteByte = memory[i + row];
+
+            for (int col = 0; col < 8; col++)
+            {
+                byte spritePixel = (byte)(spriteByte & (0x80u >> col));
+
+                if (spritePixel != 0)
+                {
+                    int px = (xPos + col) % 64;
+                    int py = (yPos + row) % 32;
+
+                    //collision
+                    if (gfx[py, px] == 1)
+                    {
+                        V[0xF] = 1;
+                    }
+
+                    //XOR toggle
+                    gfx[py, px] ^= 1;
+                }
+            }
+        }
+
+    }
 
     public void SKP_X(byte reg)
     {
-        
+        byte k = V[reg];
+        if (key[k] != 0)
+        {
+            pc += 2;
+        }
     }
     public void SKNP_X(byte reg)
     {
-        
+        byte k = V[reg];
+        if (key[k] == 0)
+        {
+            pc += 2;
+        }
     }
 
     public void LD_XDT(byte reg)
@@ -441,7 +502,16 @@ public class CPU
     
     public void LD_XKT(byte reg) //key press
     {
-        
+        for (byte j = 0; j < 16; j++)
+        {
+            if (key[j] != 0)
+            {
+                V[reg] = j;
+                return;
+            }
+        }
+
+        pc -= 2;
     }
 
     public void LD_DTX(byte reg)
@@ -461,12 +531,23 @@ public class CPU
 
     public void LD_FX(byte reg)
     {
-        
+        i = (ushort)(0x50 + (5 * V[reg]));
     }
 
     public void LD_BX(byte reg)
     {
+        byte value = V[reg];
         
+        //ones
+        memory[i + 2] = (byte)(value % 10);
+        value /= 10;
+
+        //tens
+        memory[i + 1] = (byte)(value % 10);
+        value /= 10;
+
+        //hunded
+        memory[i] = (byte)(value % 10);
     }
 
     public void LD_XI(byte reg) //copy the values of every register into memory starting at I
