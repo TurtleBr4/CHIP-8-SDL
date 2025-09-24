@@ -14,8 +14,10 @@ public static class Program
 
     public static void Main()
     {
+        Console.WriteLine(((char)(0)).ToString());
         CPU chip = new CPU();
         chip.debugLoadRom(romPath);
+        chip.DecodeOpcode(0x00E0);
         DoRender(chip);
     }
 
@@ -216,8 +218,68 @@ public class CPU
     {
         return gfx[indx, indy];
     }
-    
-    
+
+    public void CycleCPU()
+    {
+        opCode = memory[pc];
+        pc++;
+        DecodeOpcode(opCode);
+    }
+
+    public void DecodeOpcode(ushort opcode)
+    {
+        string translatedOpCode = opcode.ToString("X4");
+        Console.WriteLine(translatedOpCode); //for debugging
+        switch (translatedOpCode[0]) //i feel like yandev typing this out
+        {
+            case '0':
+                if (translatedOpCode[3] == 0)
+                {
+                    Console.WriteLine("CLS");
+                    CLS();
+                }
+                else if (translatedOpCode[3] == 'E')
+                {
+                    Console.WriteLine("RET");
+                    //RET();
+                }
+                break;
+            case (char)(1):
+                break;
+            case (char)(2):
+                break;
+            case (char)(3):
+                break;
+            case (char)(4):
+                break;
+            case (char)(5):
+                break;
+            case (char)(6):
+                break;
+            case (char)(7):
+                break;
+            case (char)(8):
+                break;
+            case (char)(9):
+                break;
+            case 'A':
+                break;
+            case 'B':
+                break;
+            case 'C':
+                break;
+            case 'D':
+                break;
+            case 'E':
+                break;
+            case 'F':
+                break;
+            default:
+                Console.WriteLine("Lol");
+                break;
+            
+        }
+    }
     
     //note that Vx is a stand-in for our registers, where x is 0-F
     
@@ -357,7 +419,69 @@ public class CPU
     public void RND(byte reg, byte kk) //set vx to a random byte AND kk
     {
         Random rnd = new Random();
-        byte r = (byte)rnd.Next(0, 255);
+        byte r = (byte)rnd.Next(0, 256);
         V[reg] = (byte)(r & kk);
+    }
+    
+    public void DRAW(){}
+
+    public void SKP_X(byte reg)
+    {
+        
+    }
+    public void SKNP_X(byte reg)
+    {
+        
+    }
+
+    public void LD_XDT(byte reg)
+    {
+        V[reg] = delayTimer;
+    }
+    
+    public void LD_XKT(byte reg) //key press
+    {
+        
+    }
+
+    public void LD_DTX(byte reg)
+    {
+        delayTimer = V[reg];
+    }
+
+    public void LD_STX(byte reg)
+    {
+        soundTimer =  V[reg];
+    }
+
+    public void ADD_IX(byte reg)
+    {
+        i += (byte)(i + V[reg]);
+    }
+
+    public void LD_FX(byte reg)
+    {
+        
+    }
+
+    public void LD_BX(byte reg)
+    {
+        
+    }
+
+    public void LD_XI(byte reg) //copy the values of every register into memory starting at I
+    {
+        for (byte j = 0; j < reg; j++)
+        {
+            memory[i+j] = V[reg];
+        }
+    }
+
+    public void LD_IX(byte reg)
+    {
+        for (byte j = 0; j < reg; j++)
+        {
+            V[j] = memory[i+j];
+        }
     }
 }
