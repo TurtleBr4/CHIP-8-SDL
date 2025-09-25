@@ -9,7 +9,7 @@ public static class Program
    static IntPtr renderer;
    static IntPtr font;
    //static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
-   static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
+   static string romPath = "/home/zaid/Downloads/1-chip8-logo.ch8";
    private static int delay;
 
    private static int scale;
@@ -19,14 +19,86 @@ public static class Program
     public static void Main()
     {
         delay = int.Parse(Console.ReadLine());
-        scale = int.Parse(Console.ReadLine());
+        scale = (int.Parse(Console.ReadLine()) * 2);
+        Console.WriteLine();
         
         
         
         CPU chip = new CPU();
         chip.debugLoadRom(romPath);
-        chip.DecodeOpcode(0x00E0);
-        DoRender(chip, scale);
+        DoEmulatorRender(chip, scale);
+    }
+
+    static void DoEmulatorRender(CPU chip, int scale)
+    {
+        SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
+        IntPtr window = SDL.SDL_CreateWindow("Woah",
+            SDL.SDL_WINDOWPOS_CENTERED,
+            SDL.SDL_WINDOWPOS_CENTERED,
+            64 * scale, 32 * scale,
+            SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN);
+
+        renderer = SDL.SDL_CreateRenderer(window, -1,
+            SDL.SDL_RendererFlags.SDL_RENDERER_ACCELERATED |
+            SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
+        );
+
+        var lastCycleTime = DateTime.Now;
+
+        bool quit = false;
+        SDL.SDL_Event e;
+
+        while (!quit)
+        {
+            var currentTime = DateTime.Now;
+            var dt = (currentTime - lastCycleTime);
+
+            if (dt > TimeSpan.FromSeconds(delay))
+            {
+                Console.WriteLine(dt);
+                lastCycleTime = currentTime;
+                chip.CycleCPU();
+            }
+
+            while (SDL.SDL_PollEvent(out e) != 0)
+            {
+                if (e.type == SDL.SDL_EventType.SDL_QUIT)
+                    quit = true;
+            }
+
+            // Clear screen
+            SDL.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL.SDL_RenderClear(renderer);
+
+            // Draw CHIP-8 pixels
+            SDL.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            for (int y = 0; y < 32; y++)
+            {
+                for (int x = 0; x < 64; x++)
+                {
+                    if (chip.gfx[x, y] != 0)
+                    {
+                        SDL.SDL_Rect rect = new SDL.SDL_Rect
+                        {
+                            x = x * scale,
+                            y = y * scale,
+                            w = scale,
+                            h = scale
+                        };
+                        SDL.SDL_RenderFillRect(renderer, ref rect);
+                    }
+                }
+            }
+
+            // Present backbuffer
+            SDL.SDL_RenderPresent(renderer);
+
+            SDL.SDL_Delay(16); // ~60 FPS
+        }
+
+        SDL.SDL_DestroyRenderer(renderer);
+        SDL.SDL_DestroyWindow(window);
+        SDL.SDL_Quit();
     }
 
     static void DoRender(CPU c, int scale)
@@ -145,7 +217,7 @@ public class CPU
     byte[] V = new byte[16]; //cpu registers, 16 total
     private ushort pc; //program counter, stores the next instruction
     private ushort i; //index register
-    byte[,] gfx = new byte[64, 32]; //graphics representation, 2048 pixels
+    public byte[,] gfx = new byte[64, 32]; //graphics representation, 2048 pixels
     private byte delayTimer;
     private byte soundTimer;
     ushort[] stack = new ushort[16];
@@ -249,7 +321,8 @@ public class CPU
     public void CycleCPU()
     {
         opCode = memory[pc];
-        pc++;
+        Console.WriteLine(pc.ToString(format: "X4"));
+        pc += 2;
         DecodeOpcode(opCode);
 
         if (delayTimer > 0)
@@ -288,7 +361,6 @@ public class CPU
             case '0':
                 if (translatedOpCode[3] == '0')
                 {
-                    Console.WriteLine("CLS");
                     CLS();
                 }
                 else if (translatedOpCode[3] == 'E')
@@ -474,8 +546,9 @@ public class CPU
 
     public void RET() //RET return from routine
     {
-        pc = stack[sp];
-        sp--;
+        Console.WriteLine("Pre Iterate: " + sp + " Post iteration: " + (sp-1));
+        pc = stack[--sp];
+
     }
 
     public void JUMP(ushort addr)
@@ -485,8 +558,7 @@ public class CPU
 
     public void CALL(ushort addr)
     {
-        stack[sp] = pc;
-        sp++;
+        stack[++sp] = pc;
         pc = addr;
     }
 
