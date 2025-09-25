@@ -8,30 +8,38 @@ public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
-   static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
-   //static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
+   //static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
+   static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
+   private static int delay;
+
+   private static int scale;
+ 
 
 
     public static void Main()
     {
-        Console.WriteLine(((char)(0)).ToString());
+        delay = int.Parse(Console.ReadLine());
+        scale = int.Parse(Console.ReadLine());
+        
+        
+        
         CPU chip = new CPU();
         chip.debugLoadRom(romPath);
         chip.DecodeOpcode(0x00E0);
-        DoRender(chip);
+        DoRender(chip, scale);
     }
 
-    static void DoRender(CPU c)
+    static void DoRender(CPU c, int scale)
     {
         // Initialize SDL and TTF
         SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
         SDL_ttf.TTF_Init();
 
         IntPtr window = SDL.SDL_CreateWindow(
-            "render that video array oorah",
+            "That funky music, White Boy",
             SDL.SDL_WINDOWPOS_CENTERED,
             SDL.SDL_WINDOWPOS_CENTERED,
-            1400, 720,
+            64 * scale, 32 * scale,
             SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN
         );
 
@@ -41,8 +49,8 @@ public static class Program
         );
 
         // Load font (change path if needed)
-        //font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
-        font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
+        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
+        //font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
 
         bool quit = false;
         SDL.SDL_Event e;
@@ -145,7 +153,7 @@ public class CPU
     byte[] key = new byte[16]; //keeps the current state of the key
     
     
-
+    private Dictionary<ConsoleKey, int> keyMap = new();
     private const uint fontSize = 80;
     byte[] fontSet =
     {
@@ -174,12 +182,31 @@ public class CPU
         i = 0;
         sp = 0;
         LoadFont();
+        initKeys();
         
     }
     
-    //rom loader
-
-    void LoadROM(string filepath)
+    
+    private void initKeys() //maps keys to the index in the array
+    {
+        keyMap.Add(ConsoleKey.D1, 0);
+        keyMap.Add(ConsoleKey.D2, 1);
+        keyMap.Add(ConsoleKey.D3, 2);
+        keyMap.Add(ConsoleKey.D4, 4);
+        keyMap.Add(ConsoleKey.Q, 5);
+        keyMap.Add(ConsoleKey.W, 6);
+        keyMap.Add(ConsoleKey.E, 7);
+        keyMap.Add(ConsoleKey.R, 8);
+        keyMap.Add(ConsoleKey.A, 9);
+        keyMap.Add(ConsoleKey.S, 10);
+        keyMap.Add(ConsoleKey.D, 11);
+        keyMap.Add(ConsoleKey.F, 12);
+        keyMap.Add(ConsoleKey.Z, 13);
+        keyMap.Add(ConsoleKey.X, 14);
+        keyMap.Add(ConsoleKey.C, 15);
+        keyMap.Add(ConsoleKey.V, 16);
+    }
+    void LoadROM(string filepath)//rom loader
     {
         byte[] file = File.ReadAllBytes(filepath);
 
@@ -224,8 +251,29 @@ public class CPU
         opCode = memory[pc];
         pc++;
         DecodeOpcode(opCode);
+
+        if (delayTimer > 0)
+        {
+            delayTimer--;
+        }
+
+        if (soundTimer == 0)
+        {
+            soundTimer--;
+        }
+        
+        CheckKeyStatus();
     }
 
+    void CheckKeyStatus()
+    {
+        if (Console.KeyAvailable)
+        {
+            ConsoleKeyInfo k = Console.ReadKey(true);
+            key[keyMap[k.Key]] = 1;
+        }
+    }
+    
     public void DecodeOpcode(ushort opcode)
     {
         string translatedOpCode = opcode.ToString("X4");
