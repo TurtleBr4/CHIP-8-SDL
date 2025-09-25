@@ -8,8 +8,8 @@ public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
-   //static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
-   static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
+   static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
+   //static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
 
 
     public static void Main()
@@ -41,8 +41,8 @@ public static class Program
         );
 
         // Load font (change path if needed)
-        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
-        //font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
+        //font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
+        font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
 
         bool quit = false;
         SDL.SDL_Event e;
@@ -238,7 +238,7 @@ public class CPU
         switch (translatedOpCode[0]) //i feel like yandev typing this out
         {
             case '0':
-                if (translatedOpCode[3] == 0)
+                if (translatedOpCode[3] == '0')
                 {
                     Console.WriteLine("CLS");
                     CLS();
@@ -251,11 +251,11 @@ public class CPU
                 break;
             case '1':
                 tcode = translatedOpCode.Substring(1);
-                JUMP(byte.Parse(tcode));
+                JUMP(ushort.Parse(tcode));
                 break;
             case '2':
                 tcode = translatedOpCode.Substring(1);
-                CALL(byte.Parse(tcode));
+                CALL(ushort.Parse(tcode));
                 break;
             case '3':
                 treg = byte.Parse(translatedOpCode[1].ToString());
@@ -263,28 +263,155 @@ public class CPU
                 SE_XKK(treg, tkk);
                 break;
             case '4':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                tkk = byte.Parse(translatedOpCode.Substring(2));
+                SNE_XKK(treg, tkk);
                 break;
             case '5':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg2 = byte.Parse(translatedOpCode[2].ToString());
+                SE_XY(treg, treg2);
                 break;
             case '6':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                tkk = byte.Parse(translatedOpCode.Substring(2));
+                LD_XKK(treg, tkk);
                 break;
             case '7':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                tkk = byte.Parse(translatedOpCode.Substring(2));
+                ADD_XKK(treg, tkk);
                 break;
-            case '8':
+            case '8': //oh boy here we go
+                switch (translatedOpCode[4]) //there is 1000% a better way of doing this, but this was funny
+                {
+                    case '0':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        LD_XY(treg, treg2);
+                        break;
+                    case '1':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        OR_XY(treg, treg2);
+                        break;
+                    case '2':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        AND_XY(treg, treg2);
+                        break;
+                    case '3':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        XOR_XY(treg, treg2);
+                        break;
+                    case '4':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        ADD_XY(treg, treg2);
+                        break;
+                    case '5':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        SUB_XY(treg, treg2);
+                        break;
+                    case '6':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        SHR_X(treg);
+                        break;
+                    case '7':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        SUBN_XY(treg, treg2);
+                        break;
+                    case 'E':
+                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        SHL_X(treg);
+                        break;
+                    default:
+                        Console.WriteLine("How did this even happen???");
+                        break;
+                }
                 break;
             case '9':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg2 = byte.Parse(translatedOpCode[2].ToString());
+                SNE_XY(treg, treg2);
                 break;
             case 'A':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                LD_IADR(treg);
                 break;
             case 'B':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                JP_VADR(treg);
                 break;
             case 'C':
+                tcode = translatedOpCode.Substring(1);
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                RND(treg,byte.Parse(tcode));
                 break;
             case 'D':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg2 = byte.Parse(translatedOpCode[2].ToString());
+                tcode = translatedOpCode[4].ToString();
+                DRAW(treg,treg2, byte.Parse(tcode));
                 break;
             case 'E':
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                if (translatedOpCode[4] == 'E')
+                {
+                    SKP_X(treg);
+                }
+                else
+                {
+                    SKNP_X(treg);
+                }
                 break;
-            case 'F':
+            case 'F': //here we go again
+                treg = byte.Parse(translatedOpCode[1].ToString());
+                if (translatedOpCode[3] == '0')
+                {
+                    if (translatedOpCode[4] == '7')
+                    {
+                        LD_XDT(treg);
+                    }
+                    else
+                    {
+                        LD_XKT(treg);
+                    }
+                }
+                else if (translatedOpCode[3] == '1')
+                {
+                    if (translatedOpCode[4] == '5')
+                    {
+                        LD_DTX(treg);
+                    }
+                    else if (translatedOpCode[4] == '8')
+                    {
+                        LD_STX(treg);
+                    }
+                    else
+                    {
+                        ADD_IX(treg);
+                    }
+                }
+                else if (translatedOpCode[3] == '2')
+                {
+                    LD_FX(treg);
+                }
+                else if (translatedOpCode[3] == '3')
+                {
+                    LD_BX(treg);
+                }
+                else if (translatedOpCode[3] == '5')
+                {
+                    LD_IX(treg);
+                }
+                else if (translatedOpCode[3] == '6')
+                {
+                    LD_XI(treg);
+                }
                 break;
             default:
                 Console.WriteLine("Lol");
@@ -292,7 +419,7 @@ public class CPU
             
         }
     }
-    
+
     //note that Vx is a stand-in for our registers, where x is 0-F
     
     public void CLS(){ Array.Clear(gfx); } //CLS clear display
@@ -467,7 +594,7 @@ public class CPU
                     //collision
                     if (gfx[py, px] == 1)
                     {
-                        V[0xF] = 1;
+                        V[15] = 1;
                     }
 
                     //XOR toggle
