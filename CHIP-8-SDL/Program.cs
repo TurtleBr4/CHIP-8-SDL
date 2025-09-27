@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using SDL2;
 
@@ -8,8 +9,8 @@ public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
-   //static string romPath = @"C:\Users\zaidg\Downloads\test_opcode.ch8";
-   static string romPath = "/home/zaid/Downloads/1-chip8-logo.ch8";
+   static string romPath = @"C:\Users\zaidg\Downloads\3-corax+.ch8";
+   //static string romPath = "/home/zaid/Downloads/1-chip8-logo.ch8";
    private static int delay;
 
    private static int scale;
@@ -18,14 +19,12 @@ public static class Program
 
     public static void Main()
     {
+        CPU chip = new CPU();
+        chip.debugLoadRom(romPath);
         delay = int.Parse(Console.ReadLine());
         scale = (int.Parse(Console.ReadLine()) * 2);
         Console.WriteLine();
-        
-        
-        
-        CPU chip = new CPU();
-        chip.debugLoadRom(romPath);
+
         DoEmulatorRender(chip, scale);
     }
 
@@ -53,6 +52,7 @@ public static class Program
             var currentTime = DateTime.Now;
             var dt = (currentTime - lastCycleTime);
 
+    
             if (dt > TimeSpan.FromSeconds(delay))
             {
                 Console.WriteLine(dt);
@@ -72,11 +72,12 @@ public static class Program
 
             // Draw CHIP-8 pixels
             SDL.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
             for (int y = 0; y < 32; y++)
             {
                 for (int x = 0; x < 64; x++)
                 {
-                    if (chip.gfx[x, y] != 0)
+                    if (chip.gfx[y * 64 + x] != 0)
                     {
                         SDL.SDL_Rect rect = new SDL.SDL_Rect
                         {
@@ -89,6 +90,7 @@ public static class Program
                     }
                 }
             }
+
 
             // Present backbuffer
             SDL.SDL_RenderPresent(renderer);
@@ -121,8 +123,8 @@ public static class Program
         );
 
         // Load font (change path if needed)
-        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
-        //font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
+        //font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
+        font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
 
         bool quit = false;
         SDL.SDL_Event e;
@@ -213,11 +215,11 @@ public static class Program
 public class CPU
 {
     private ushort opCode; //stores the current opcode
-    byte[] memory =  new byte[4096]; //represents 4 kilobytes of memory (this should be unsgined!)
+    public byte[] memory =  new byte[4096]; //represents 4 kilobytes of memory (this should be unsgined!)
     byte[] V = new byte[16]; //cpu registers, 16 total
     private ushort pc; //program counter, stores the next instruction
     private ushort i; //index register
-    public byte[,] gfx = new byte[64, 32]; //graphics representation, 2048 pixels
+    public byte[] gfx = new byte[64 * 32]; //graphics representation, 2048 pixels
     private byte delayTimer;
     private byte soundTimer;
     ushort[] stack = new ushort[16];
@@ -227,7 +229,7 @@ public class CPU
     
     private Dictionary<ConsoleKey, int> keyMap = new();
     private const uint fontSize = 80;
-    byte[] fontSet =
+    byte[] fontSet = new byte[]
     {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -315,12 +317,12 @@ public class CPU
 
     public byte debugShowScreen(int indx, int indy)
     {
-        return gfx[indx, indy];
+        return gfx[indx * indy];
     }
 
     public void CycleCPU()
     {
-        opCode = memory[pc];
+        opCode = (ushort)(memory[pc] << (ushort)8u | memory[pc + 1]);
         Console.WriteLine(pc.ToString(format: "X4"));
         pc += 2;
         DecodeOpcode(opCode);
@@ -371,81 +373,81 @@ public class CPU
                 break;
             case '1':
                 tcode = translatedOpCode.Substring(1);
-                JUMP(ushort.Parse(tcode));
+                JUMP(ushort.Parse(tcode, NumberStyles.HexNumber));
                 break;
             case '2':
                 tcode = translatedOpCode.Substring(1);
-                CALL(ushort.Parse(tcode));
+                CALL(ushort.Parse(tcode , NumberStyles.HexNumber));
                 break;
             case '3':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                tkk = byte.Parse(translatedOpCode.Substring(2));
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                tkk = byte.Parse(translatedOpCode.Substring(2), NumberStyles.HexNumber);
                 SE_XKK(treg, tkk);
                 break;
             case '4':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                tkk = byte.Parse(translatedOpCode.Substring(2));
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                tkk = byte.Parse(translatedOpCode.Substring(2), NumberStyles.HexNumber);
                 SNE_XKK(treg, tkk);
                 break;
             case '5':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                treg2 = byte.Parse(translatedOpCode[2].ToString());
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                 SE_XY(treg, treg2);
                 break;
             case '6':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                tkk = byte.Parse(translatedOpCode.Substring(2));
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                tkk = byte.Parse(translatedOpCode.Substring(2), NumberStyles.HexNumber);
                 LD_XKK(treg, tkk);
                 break;
             case '7':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                tkk = byte.Parse(translatedOpCode.Substring(2));
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                tkk = byte.Parse(translatedOpCode.Substring(2), NumberStyles.HexNumber);
                 ADD_XKK(treg, tkk);
                 break;
             case '8': //oh boy here we go
-                switch (translatedOpCode[4]) //there is 1000% a better way of doing this, but this was funny
+                switch (translatedOpCode[3]) //there is 1000% a better way of doing this, but this was funny
                 {
                     case '0':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         LD_XY(treg, treg2);
                         break;
                     case '1':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         OR_XY(treg, treg2);
                         break;
                     case '2':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         AND_XY(treg, treg2);
                         break;
                     case '3':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         XOR_XY(treg, treg2);
                         break;
                     case '4':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         ADD_XY(treg, treg2);
                         break;
                     case '5':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         SUB_XY(treg, treg2);
                         break;
                     case '6':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                         SHR_X(treg);
                         break;
                     case '7':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
-                        treg2 = byte.Parse(translatedOpCode[2].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                        treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                         SUBN_XY(treg, treg2);
                         break;
                     case 'E':
-                        treg = byte.Parse(translatedOpCode[1].ToString());
+                        treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                         SHL_X(treg);
                         break;
                     default:
@@ -454,32 +456,33 @@ public class CPU
                 }
                 break;
             case '9':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                treg2 = byte.Parse(translatedOpCode[2].ToString());
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                 SNE_XY(treg, treg2);
                 break;
             case 'A':
-                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                 LD_IADR(treg);
                 break;
             case 'B':
-                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                 JP_VADR(treg);
                 break;
             case 'C':
                 tcode = translatedOpCode.Substring(1);
-                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                 RND(treg,byte.Parse(tcode));
                 break;
             case 'D':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                treg2 = byte.Parse(translatedOpCode[2].ToString());
-                tcode = translatedOpCode[4].ToString();
-                DRAW(treg,treg2, byte.Parse(tcode));
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
+                tcode = translatedOpCode[3].ToString();
+                i = (ushort)(V[treg] * 5); // point to correct sprite in memory (0–F)
+                DRAW(treg,treg2, byte.Parse(tcode, NumberStyles.HexNumber));
                 break;
             case 'E':
-                treg = byte.Parse(translatedOpCode[1].ToString());
-                if (translatedOpCode[4] == 'E')
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
+                if (translatedOpCode[3] == 'E')
                 {
                     SKP_X(treg);
                 }
@@ -489,10 +492,10 @@ public class CPU
                 }
                 break;
             case 'F': //here we go again
-                treg = byte.Parse(translatedOpCode[1].ToString());
+                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                 if (translatedOpCode[3] == '0')
                 {
-                    if (translatedOpCode[4] == '7')
+                    if (translatedOpCode[3] == '7')
                     {
                         LD_XDT(treg);
                     }
@@ -503,11 +506,11 @@ public class CPU
                 }
                 else if (translatedOpCode[3] == '1')
                 {
-                    if (translatedOpCode[4] == '5')
+                    if (translatedOpCode[3] == '5')
                     {
                         LD_DTX(treg);
                     }
-                    else if (translatedOpCode[4] == '8')
+                    else if (translatedOpCode[3] == '8')
                     {
                         LD_STX(treg);
                     }
@@ -541,13 +544,23 @@ public class CPU
     }
 
     //note that Vx is a stand-in for our registers, where x is 0-F
-    
-    public void CLS(){ Array.Clear(gfx); } //CLS clear display
+
+    public void CLS()
+    {
+        Console.WriteLine("Cleared gfx");
+        Array.Clear(gfx);
+    } //CLS clear display
 
     public void RET() //RET return from routine
     {
         Console.WriteLine("Pre Iterate: " + sp + " Post iteration: " + (sp-1));
-        pc = stack[--sp];
+        if (sp == 0)
+        {
+            Console.WriteLine("Stack Empty");
+            return;
+        }
+        sp--;
+        pc = stack[sp];
 
     }
 
@@ -558,7 +571,9 @@ public class CPU
 
     public void CALL(ushort addr)
     {
-        stack[++sp] = pc;
+        Console.WriteLine("Called: " + addr.ToString(format: "x4"));
+        stack[sp] = pc; 
+        sp++;
         pc = addr;
     }
 
@@ -704,21 +719,18 @@ public class CPU
 
             for (int col = 0; col < 8; col++)
             {
-                byte spritePixel = (byte)(spriteByte & (0x80u >> col));
-
-                if (spritePixel != 0)
+                int spritePixel = (spriteByte & (0x80 >> col)) != 0 ? 1 : 0;
+                if (spritePixel == 1)
                 {
                     int px = (xPos + col) % 64;
                     int py = (yPos + row) % 32;
 
-                    //collision
-                    if (gfx[py, px] == 1)
-                    {
-                        V[15] = 1;
-                    }
+                    int index = py * 64 + px;
 
-                    //XOR toggle
-                    gfx[py, px] ^= 1;
+                    if (gfx[index] == 1)
+                        V[15] = 1;
+
+                    gfx[index] ^= 1;
                 }
             }
         }
