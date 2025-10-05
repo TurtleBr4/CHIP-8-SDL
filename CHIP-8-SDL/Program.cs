@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Threading;
 using System.IO;
 using SDL2;
 
@@ -9,8 +10,8 @@ public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
-   static string romPath = @"C:\Users\zaidg\Downloads\3-corax+.ch8";
-   //static string romPath = "/home/zaid/Downloads/1-chip8-logo.ch8";
+   //static string romPath = @"C:\Users\zaidg\Downloads\3-corax+.ch8";
+   static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
    private static int delay;
 
    private static int scale;
@@ -19,14 +20,124 @@ public static class Program
 
     public static void Main()
     {
+        
         CPU chip = new CPU();
         chip.debugLoadRom(romPath);
+       
         delay = int.Parse(Console.ReadLine());
         scale = (int.Parse(Console.ReadLine()) * 2);
         Console.WriteLine();
-
-        DoEmulatorRender(chip, scale);
+        DoMergedRender(chip, scale);
+        
     }
+    
+    static void DoMergedRender(CPU chip, int scale)
+{
+    SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
+    SDL_ttf.TTF_Init();
+
+    // --- Window 1: CHIP-8 Display ---
+    IntPtr window1 = SDL.SDL_CreateWindow(
+        "CHIP-8 Display",
+        SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED,
+        64 * scale, 32 * scale,
+        SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN
+    );
+    IntPtr renderer1 = SDL.SDL_CreateRenderer(window1, -1,
+        SDL.SDL_RendererFlags.SDL_RENDERER_ACCELERATED |
+        SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
+    );
+
+    // --- Window 2: Debug / Text Display ---
+    IntPtr window2 = SDL.SDL_CreateWindow(
+        "Debug Window",
+        SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED,
+        640, 480, // choose a size big enough for memory dump
+        SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN
+    );
+    IntPtr renderer2 = SDL.SDL_CreateRenderer(window2, -1,
+        SDL.SDL_RendererFlags.SDL_RENDERER_ACCELERATED |
+        SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
+    );
+
+    // Load font for debug window
+    IntPtr font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15);
+    // font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
+
+    var lastCycleTime = DateTime.Now;
+    bool quit = false;
+    SDL.SDL_Event e;
+
+    while (!quit)
+    {
+        // --- CPU cycle timing ---
+        var currentTime = DateTime.Now;
+        var dt = (currentTime - lastCycleTime);
+        if (dt > TimeSpan.FromSeconds(delay))
+        {
+            lastCycleTime = currentTime;
+            chip.CycleCPU();
+        }
+
+        // Handle SDL events (shared for both windows)
+        while (SDL.SDL_PollEvent(out e) != 0)
+        {
+            if (e.type == SDL.SDL_EventType.SDL_QUIT)
+                quit = true;
+        }
+
+        // --- Render CHIP-8 window ---
+        SDL.SDL_SetRenderDrawColor(renderer1, 0, 0, 0, 255);
+        SDL.SDL_RenderClear(renderer1);
+
+        SDL.SDL_SetRenderDrawColor(renderer1, 255, 255, 255, 255);
+        for (int y = 0; y < 32; y++)
+        {
+            for (int x = 0; x < 64; x++)
+            {
+                if (chip.gfx[y * 64 + x] != 0)
+                {
+                    SDL.SDL_Rect rect = new SDL.SDL_Rect
+                    {
+                        x = x * scale,
+                        y = y * scale,
+                        w = scale,
+                        h = scale
+                    };
+                    SDL.SDL_RenderFillRect(renderer1, ref rect);
+                }
+            }
+        }
+        SDL.SDL_RenderPresent(renderer1);
+
+        // --- Render Debug window ---
+        SDL.SDL_SetRenderDrawColor(renderer2, 0, 0, 0, 255);
+        SDL.SDL_RenderClear(renderer2);
+
+        int bytesPerLine = 64;
+        int startX = 0;
+        int startY = 0;
+        int lineHeight = 10;
+
+        // Example: Replace with your own debug renderer
+        //RenderMemory(chip, bytesPerLine, startX, startY, lineHeight, renderer2, font);
+        RenderScreen(chip, renderer2, font ,startX, startY, lineHeight);
+
+        SDL.SDL_RenderPresent(renderer2);
+
+        SDL.SDL_Delay(16); // ~60 FPS
+    }
+
+    // Cleanup
+    SDL_ttf.TTF_CloseFont(font);
+    SDL.SDL_DestroyRenderer(renderer1);
+    SDL.SDL_DestroyRenderer(renderer2);
+    SDL.SDL_DestroyWindow(window1);
+    SDL.SDL_DestroyWindow(window2);
+    SDL_ttf.TTF_Quit();
+    SDL.SDL_Quit();
+}
+
 
     static void DoEmulatorRender(CPU chip, int scale)
     {
@@ -123,8 +234,8 @@ public static class Program
         );
 
         // Load font (change path if needed)
-        //font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
-        font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
+        font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15); //on linux
+        //font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
 
         bool quit = false;
         SDL.SDL_Event e;
@@ -142,10 +253,10 @@ public static class Program
             int bytesPerLine = 64; 
             int startX = (1400/4) + 40;        
             int startY = 25;       
-            int lineHeight = 10;   
+            int lineHeight = 20;   
             
             //RenderMemory(c, bytesPerLine, startX, startY, lineHeight);
-            RenderScreen(c, startX, startY, lineHeight);
+            //RenderScreen(c, startX, startY, lineHeight);
 
             SDL.SDL_RenderPresent(renderer);
             SDL.SDL_Delay(16); // ~60 FPS
@@ -175,11 +286,11 @@ public static class Program
             }
 
             // Render the entire line once
-            RenderText(sb.ToString(), startX, startY + row * lineHeight);
+            //RenderText(sb.ToString(), startX, startY + row * lineHeight);
         }
     }
     
-    static void RenderText(string message, int x, int y)
+    static void RenderText(IntPtr renderer, IntPtr font, string message, int x, int y)
     {
         SDL.SDL_Color white = new SDL.SDL_Color { r = 255, g = 255, b = 255, a = 255 };
         IntPtr surface = SDL_ttf.TTF_RenderText_Solid(font, message, white);
@@ -194,7 +305,7 @@ public static class Program
         SDL.SDL_DestroyTexture(texture);
     }
 
-    static void RenderScreen(CPU c, int x, int y, int space)
+    static void RenderScreen(CPU c, IntPtr renderer, IntPtr font, int x, int y, int space)
     {
         for (int row = 0; row < 64; row++)
         {
@@ -202,12 +313,13 @@ public static class Program
             for (int col = 0; col < 32; col++)
             {
                 byte temp = c.debugShowScreen(row, col);
-                
-                sb.Append(temp.ToString("X2")).Append(""); // hex with space
+                sb.Append(temp.ToString("X2"));
             }
-            RenderText(sb.ToString(), x, y + row * space);
+
+            RenderText(renderer, font, sb.ToString(), x, y + row * space);
         }
     }
+
 
 
 }
@@ -222,9 +334,10 @@ public class CPU
     public byte[] gfx = new byte[64 * 32]; //graphics representation, 2048 pixels
     private byte delayTimer;
     private byte soundTimer;
-    ushort[] stack = new ushort[16];
+    ushort[] stack = new ushort[12];
     private byte sp; //stack pointer
     byte[] key = new byte[16]; //keeps the current state of the key
+    private int counter;
     
     
     private Dictionary<ConsoleKey, int> keyMap = new();
@@ -257,7 +370,8 @@ public class CPU
         sp = 0;
         LoadFont();
         initKeys();
-        
+        counter = 0;
+
     }
     
     
@@ -286,9 +400,9 @@ public class CPU
 
         if (file != null)
         {
-            for (long i = 0; i < file.Length; i++)
+            for (long j = 0; j < file.Length; j++)
             {
-                memory[0x200 + i] = file[i]; //load rom from our starting address
+                memory[0x200 + j] = file[j]; //load rom from our starting address
             }
         }
         else
@@ -325,19 +439,29 @@ public class CPU
         opCode = (ushort)(memory[pc] << (ushort)8u | memory[pc + 1]);
         Console.WriteLine(pc.ToString(format: "X4"));
         pc += 2;
+        CheckKeyStatus();
         DecodeOpcode(opCode);
 
+        if ((counter % 10) == 0)
+        {
+            UpdateTimers();
+        }
+        
+        
+        counter++;
+    }
+
+    void UpdateTimers()
+    {
         if (delayTimer > 0)
         {
             delayTimer--;
         }
 
-        if (soundTimer == 0)
+        if (soundTimer > 0)
         {
             soundTimer--;
         }
-        
-        CheckKeyStatus();
     }
 
     void CheckKeyStatus()
@@ -347,6 +471,26 @@ public class CPU
             ConsoleKeyInfo k = Console.ReadKey(true);
             key[keyMap[k.Key]] = 1;
         }
+        else
+        {
+            Array.Clear(key, 0, key.Length);
+        }
+    }
+
+    void CheckKeyStatus(SDL.SDL_Event e, SDL.SDL_TextInputEvent te)
+    {
+        while (SDL.SDL_PollEvent(out e) != 0)
+        {
+            if (e.type == SDL.SDL_EventType.SDL_KEYDOWN)
+            {
+                
+            }
+        }
+    }
+
+    void GetThatKey()
+    {
+        
     }
     
     public void DecodeOpcode(ushort opcode)
@@ -461,23 +605,22 @@ public class CPU
                 SNE_XY(treg, treg2);
                 break;
             case 'A':
-                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
-                LD_IADR(treg);
+                tcode = translatedOpCode.Substring(1);
+                LD_IADR(ushort.Parse(tcode, NumberStyles.HexNumber));
                 break;
             case 'B':
-                treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
-                JP_VADR(treg);
+                tcode = translatedOpCode.Substring(1);
+                JP_VADR(ushort.Parse(tcode, NumberStyles.HexNumber));
                 break;
             case 'C':
-                tcode = translatedOpCode.Substring(1);
+                tcode = translatedOpCode.Substring(2);
                 treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
-                RND(treg,byte.Parse(tcode));
+                RND(treg,byte.Parse(tcode, NumberStyles.HexNumber));
                 break;
             case 'D':
                 treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
                 treg2 = byte.Parse(translatedOpCode[2].ToString(), NumberStyles.HexNumber);
                 tcode = translatedOpCode[3].ToString();
-                i = (ushort)(V[treg] * 5); // point to correct sprite in memory (0–F)
                 DRAW(treg,treg2, byte.Parse(tcode, NumberStyles.HexNumber));
                 break;
             case 'E':
@@ -493,7 +636,7 @@ public class CPU
                 break;
             case 'F': //here we go again
                 treg = byte.Parse(translatedOpCode[1].ToString(), NumberStyles.HexNumber);
-                if (translatedOpCode[3] == '0')
+                if (translatedOpCode[2] == '0')
                 {
                     if (translatedOpCode[3] == '7')
                     {
@@ -504,7 +647,7 @@ public class CPU
                         LD_XKT(treg);
                     }
                 }
-                else if (translatedOpCode[3] == '1')
+                else if (translatedOpCode[2] == '1')
                 {
                     if (translatedOpCode[3] == '5')
                     {
@@ -517,6 +660,7 @@ public class CPU
                     else
                     {
                         ADD_IX(treg);
+                        Console.WriteLine("Called Fx1E");
                     }
                 }
                 else if (translatedOpCode[3] == '2')
@@ -529,10 +673,12 @@ public class CPU
                 }
                 else if (translatedOpCode[3] == '5')
                 {
+                    Console.WriteLine("Calling LD_IX the last one");
                     LD_IX(treg);
                 }
                 else if (translatedOpCode[3] == '6')
                 {
+                    Console.WriteLine("Calling LD_XI the first one");
                     LD_XI(treg);
                 }
                 break;
@@ -548,7 +694,7 @@ public class CPU
     public void CLS()
     {
         Console.WriteLine("Cleared gfx");
-        Array.Clear(gfx);
+        gfx = new byte[64 * 32];
     } //CLS clear display
 
     public void RET() //RET return from routine
@@ -693,6 +839,7 @@ public class CPU
     public void LD_IADR(ushort addr) //sets the index register to an address
     {
         i = addr;
+        Console.WriteLine("I has been set to: " + addr.ToString(format: "x4"));
     }
 
     public void JP_VADR(ushort addr)
@@ -713,27 +860,26 @@ public class CPU
         byte yPos = (byte)(V[reg2] % 32);
         V[15] = 0;
 
-        for (int row = 0; row < h; row++)
+        for (byte row = 0; row < h; row++)
         {
             byte spriteByte = memory[i + row];
-
-            for (int col = 0; col < 8; col++)
+            for (byte col = 0; col < 8; col++)
             {
-                int spritePixel = (spriteByte & (0x80 >> col)) != 0 ? 1 : 0;
-                if (spritePixel == 1)
+                if ((spriteByte & (0x80 >> col)) != 0)
                 {
-                    int px = (xPos + col) % 64;
-                    int py = (yPos + row) % 32;
+                    int xCoord = (xPos + col) % 64;
+                    int yCoord = (yPos + row) % 32;
+                    int index = (yCoord * 64) + xCoord;
 
-                    int index = py * 64 + px;
-
-                    if (gfx[index] == 1)
-                        V[15] = 1;
-
+                    // toggle pixel
                     gfx[index] ^= 1;
+
+                    // collision
+                    if (gfx[index] == 0) V[15] = 1;
                 }
             }
         }
+
 
     }
 
@@ -780,12 +926,12 @@ public class CPU
 
     public void LD_STX(byte reg)
     {
-        soundTimer =  V[reg];
+        soundTimer = V[reg];
     }
 
     public void ADD_IX(byte reg)
     {
-        i += (byte)(i + V[reg]);
+        i += V[reg];
     }
 
     public void LD_FX(byte reg)
@@ -811,15 +957,16 @@ public class CPU
 
     public void LD_XI(byte reg) //copy the values of every register into memory starting at I
     {
-        for (byte j = 0; j < reg; j++)
+        for (int j = 0; j <= reg; j++)
         {
-            memory[i+j] = V[reg];
+            memory[i+j] = V[j];
+            Console.WriteLine("Called LD_XI: the one that loads into memory");
         }
     }
 
     public void LD_IX(byte reg)
     {
-        for (byte j = 0; j < reg; j++)
+        for (int j = 0; j <= reg; j++)
         {
             V[j] = memory[i+j];
         }
