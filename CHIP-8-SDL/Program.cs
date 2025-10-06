@@ -11,7 +11,7 @@ public static class Program
    static IntPtr renderer;
    static IntPtr font;
    //static string romPath = @"C:\Users\zaidg\Downloads\3-corax+.ch8";
-   static string romPath = "/home/zaid/Downloads/3-corax+.ch8";
+   static string romPath = "/home/zaid/Downloads/flightrunner.ch8";
    private static int delay;
 
    private static int scale;
@@ -73,10 +73,14 @@ public static class Program
         // --- CPU cycle timing ---
         var currentTime = DateTime.Now;
         var dt = (currentTime - lastCycleTime);
-        if (dt > TimeSpan.FromSeconds(delay))
+        if (dt > TimeSpan.FromMilliseconds(delay))
         {
             lastCycleTime = currentTime;
-            chip.CycleCPU();
+            for (int x = 0; x < 11; x++)
+            {
+                chip.CycleCPU();
+            }
+            
         }
 
         // Handle SDL events (shared for both windows)
@@ -164,11 +168,14 @@ public static class Program
             var dt = (currentTime - lastCycleTime);
 
     
-            if (dt > TimeSpan.FromSeconds(delay))
+            if (dt > TimeSpan.FromSeconds(1))
             {
-                Console.WriteLine(dt);
-                lastCycleTime = currentTime;
-                chip.CycleCPU();
+                for (int x = 0; x < 600; x++)
+                {
+                    Console.WriteLine(dt);
+                    lastCycleTime = currentTime;
+                    chip.CycleCPU();
+                }
             }
 
             while (SDL.SDL_PollEvent(out e) != 0)
@@ -206,7 +213,7 @@ public static class Program
             // Present backbuffer
             SDL.SDL_RenderPresent(renderer);
 
-            SDL.SDL_Delay(16); // ~60 FPS
+            SDL.SDL_Delay(7); // ~60 FPS
         }
 
         SDL.SDL_DestroyRenderer(renderer);
@@ -340,7 +347,7 @@ public class CPU
     private int counter;
     
     
-    private Dictionary<ConsoleKey, int> keyMap = new();
+    private Dictionary<SDL.SDL_Keycode, int> keyMap = new();
     private const uint fontSize = 80;
     byte[] fontSet = new byte[]
     {
@@ -377,22 +384,22 @@ public class CPU
     
     private void initKeys() //maps keys to the index in the array
     {
-        keyMap.Add(ConsoleKey.D1, 0);
-        keyMap.Add(ConsoleKey.D2, 1);
-        keyMap.Add(ConsoleKey.D3, 2);
-        keyMap.Add(ConsoleKey.D4, 4);
-        keyMap.Add(ConsoleKey.Q, 5);
-        keyMap.Add(ConsoleKey.W, 6);
-        keyMap.Add(ConsoleKey.E, 7);
-        keyMap.Add(ConsoleKey.R, 8);
-        keyMap.Add(ConsoleKey.A, 9);
-        keyMap.Add(ConsoleKey.S, 10);
-        keyMap.Add(ConsoleKey.D, 11);
-        keyMap.Add(ConsoleKey.F, 12);
-        keyMap.Add(ConsoleKey.Z, 13);
-        keyMap.Add(ConsoleKey.X, 14);
-        keyMap.Add(ConsoleKey.C, 15);
-        keyMap.Add(ConsoleKey.V, 16);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_1, 0);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_2, 1);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_3, 2);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_4, 4);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_q, 5);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_w, 6);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_e, 7);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_r, 8);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_a, 9);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_s, 10);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_d, 11);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_f, 12);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_z, 13);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_x, 14);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_c, 15);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_v, 16);
     }
     void LoadROM(string filepath)//rom loader
     {
@@ -436,10 +443,13 @@ public class CPU
 
     public void CycleCPU()
     {
+        SDL.SDL_Event e = default;
+        
+        CheckKeyStatus(e);
         opCode = (ushort)(memory[pc] << (ushort)8u | memory[pc + 1]);
         Console.WriteLine(pc.ToString(format: "X4"));
         pc += 2;
-        CheckKeyStatus();
+        
         DecodeOpcode(opCode);
 
         if ((counter % 10) == 0)
@@ -463,34 +473,26 @@ public class CPU
             soundTimer--;
         }
     }
-
-    void CheckKeyStatus()
-    {
-        if (Console.KeyAvailable)
-        {
-            ConsoleKeyInfo k = Console.ReadKey(true);
-            key[keyMap[k.Key]] = 1;
-        }
-        else
-        {
-            Array.Clear(key, 0, key.Length);
-        }
-    }
-
-    void CheckKeyStatus(SDL.SDL_Event e, SDL.SDL_TextInputEvent te)
+    
+    void CheckKeyStatus(SDL.SDL_Event e)
     {
         while (SDL.SDL_PollEvent(out e) != 0)
         {
             if (e.type == SDL.SDL_EventType.SDL_KEYDOWN)
             {
                 
+                Console.WriteLine(e.key.keysym.sym.ToString());
+                SDL.SDL_Keycode k = e.key.keysym.sym;
+                if (keyMap.ContainsKey(k))
+                {
+                    key[keyMap[k]] = 1;
+                }
+            }
+            else if(e.type == SDL.SDL_EventType.SDL_KEYUP)
+            {
+                Array.Clear(key, 0, key.Length);
             }
         }
-    }
-
-    void GetThatKey()
-    {
-        
     }
     
     public void DecodeOpcode(ushort opcode)
@@ -673,13 +675,17 @@ public class CPU
                 }
                 else if (translatedOpCode[3] == '5')
                 {
-                    Console.WriteLine("Calling LD_IX the last one");
-                    LD_IX(treg);
-                }
-                else if (translatedOpCode[3] == '6')
-                {
-                    Console.WriteLine("Calling LD_XI the first one");
-                    LD_XI(treg);
+                    if (translatedOpCode[2] == '6')
+                    {
+                        Console.WriteLine("Calling LD_XI the first one");
+                        LD_IX(treg);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Calling LD_IX the last one");
+                        LD_XI(treg); 
+                    }
+                    
                 }
                 break;
             default:
