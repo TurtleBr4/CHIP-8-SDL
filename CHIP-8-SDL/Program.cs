@@ -10,7 +10,7 @@ public struct Color(byte r, byte g, byte b)
 {
     public byte roy = r;
     public byte gee = g;
-    public byte biy = b;
+    public byte biv = b;
 }
 public static class Program
 {
@@ -24,19 +24,40 @@ public static class Program
 
    private static Color c1;
    private static Color c2;
+   static Dictionary<string, Color> coolColors = new Dictionary<string, Color>();
  
 
 
     public static void Main()
     {
+        LoadPresetColors();
+        
         Console.Write("Clock Speed: ");
         delay = int.Parse(Console.ReadLine());
         Console.Write("Scale: ");
         scale = (int.Parse(Console.ReadLine()) * 2);
-        Console.WriteLine("Background Color (r, g, b): ");
-        c1 = new Color(byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()));
-        Console.WriteLine("Sprite Color (r, g, b): ");
-        c2 = new Color(byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()));
+        Console.WriteLine("Background Color (r, g, b) or Preset Color (Name): ");
+        if (Console.ReadLine() == "Name")
+        {
+            Console.WriteLine("Type out your color");
+            c1 = coolColors[Console.ReadLine()];
+        }
+        else
+        {
+            c1 = new Color(byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()));
+        }
+
+        Console.WriteLine("Sprite Color (r, g, b) or Preset Color (Name): ");
+        
+        if (Console.ReadLine() == "Name")
+        {
+            Console.WriteLine("Type out your color");
+            c2 = coolColors[Console.ReadLine()];
+        }
+        else
+        {
+            c2 = new Color(byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()));
+        }
         
         bool idiotChecked = false;
         do
@@ -54,6 +75,18 @@ public static class Program
             }
             
         } while (!idiotChecked);
+
+
+    }
+
+    static void LoadPresetColors()
+    {
+        coolColors.Add("Red", new Color(255,0,0));
+        coolColors.Add("Green", new Color(0,255,0));
+        coolColors.Add("Blue", new Color(0,0,255));
+        coolColors.Add("Purple", new Color(128,70,176));
+        coolColors.Add("Orange", new Color(255,128,0));
+        coolColors.Add("Yellow", new Color(255,255,0));
 
 
     }
@@ -145,10 +178,10 @@ public static class Program
                 quit = true;
         }
         
-        SDL.SDL_SetRenderDrawColor(renderer1, c1.roy, c1.gee, c1.biy, 255);
+        SDL.SDL_SetRenderDrawColor(renderer1, c1.roy, c1.gee, c1.biv, 255);
         SDL.SDL_RenderClear(renderer1);
 
-        SDL.SDL_SetRenderDrawColor(renderer1, c2.roy, c2.gee, c2.biy, 255);
+        SDL.SDL_SetRenderDrawColor(renderer1, c2.roy, c2.gee, c2.biv, 255);
         for (int y = 0; y < 32; y++)
         {
             for (int x = 0; x < 64; x++)
