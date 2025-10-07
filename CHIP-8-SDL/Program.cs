@@ -6,17 +6,24 @@ using System.Runtime.InteropServices;
 
 namespace CHIP_8_SDL;
 
+public struct Color(byte r, byte g, byte b)
+{
+    public byte roy = r;
+    public byte gee = g;
+    public byte biy = b;
+}
 public static class Program
 {
    static IntPtr renderer;
    static IntPtr font;
-   //static string romPath = @"C:\Users\zaidg\Downloads\3-corax+.ch8";
-   //static string romPath = "/home/zaid/Downloads/flightrunner.ch8";
    static string romPath;
    private static int delay;
    private static int chosenRom;
    private static int scale;
    private static string rom;
+
+   private static Color c1;
+   private static Color c2;
  
 
 
@@ -26,6 +33,10 @@ public static class Program
         delay = int.Parse(Console.ReadLine());
         Console.Write("Scale: ");
         scale = (int.Parse(Console.ReadLine()) * 2);
+        Console.WriteLine("Background Color (r, g, b): ");
+        c1 = new Color(byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()));
+        Console.WriteLine("Sprite Color (r, g, b): ");
+        c2 = new Color(byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()), byte.Parse(Console.ReadLine()));
         
         bool idiotChecked = false;
         do
@@ -56,10 +67,12 @@ public static class Program
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             romPath = Path.Combine(solutionDir, "roms");
+            font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             romPath = Path.Combine(solutionDir, "roms");
+            font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15);
         }
         
         string[] roms = Directory.GetFiles(romPath, "*.ch8", SearchOption.AllDirectories);
@@ -106,10 +119,6 @@ public static class Program
         SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
     );
 
-    // Load font for debug window
-    IntPtr font = SDL_ttf.TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15);
-    // font = SDL_ttf.TTF_OpenFont("C:/Windows/Fonts/comic.ttf", 15);
-
     var lastCycleTime = DateTime.Now;
     bool quit = false;
     SDL.SDL_Event e;
@@ -136,10 +145,10 @@ public static class Program
                 quit = true;
         }
         
-        SDL.SDL_SetRenderDrawColor(renderer1, 0, 0, 0, 255);
+        SDL.SDL_SetRenderDrawColor(renderer1, c1.roy, c1.gee, c1.biy, 255);
         SDL.SDL_RenderClear(renderer1);
 
-        SDL.SDL_SetRenderDrawColor(renderer1, 255, 255, 255, 255);
+        SDL.SDL_SetRenderDrawColor(renderer1, c2.roy, c2.gee, c2.biy, 255);
         for (int y = 0; y < 32; y++)
         {
             for (int x = 0; x < 64; x++)
