@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Globalization;
-using System.Threading;
 using System.IO;
 using SDL2;
+using System.Runtime.InteropServices;
 
 namespace CHIP_8_SDL;
 
@@ -11,32 +11,78 @@ public static class Program
    static IntPtr renderer;
    static IntPtr font;
    //static string romPath = @"C:\Users\zaidg\Downloads\3-corax+.ch8";
-   static string romPath = "/home/zaid/Downloads/flightrunner.ch8";
+   //static string romPath = "/home/zaid/Downloads/flightrunner.ch8";
+   static string romPath;
    private static int delay;
-
+   private static int chosenRom;
    private static int scale;
+   private static string rom;
  
 
 
     public static void Main()
     {
-        
-        CPU chip = new CPU();
-        chip.debugLoadRom(romPath);
-       
+        Console.Write("Clock Speed: ");
         delay = int.Parse(Console.ReadLine());
+        Console.Write("Scale: ");
         scale = (int.Parse(Console.ReadLine()) * 2);
-        Console.WriteLine();
-        DoMergedRender(chip, scale);
+        
+        bool idiotChecked = false;
+        do
+        {
+            Console.Write("Which Rom to Load (indexed from roms folder): ");
+            chosenRom = int.Parse(Console.ReadLine());
+            CPU chip = new CPU();
+            rom = CheckOSAndLoadRom(chosenRom);
+            if (rom != "wrong")
+            {
+                idiotChecked = true;
+                chip.debugLoadRom(rom);
+                Console.WriteLine();
+                DoMergedRender(chip, scale);
+            }
+            
+        } while (!idiotChecked);
+
+
+    }
+
+    static string CheckOSAndLoadRom(int romID)
+    {
+        
+        string exePath = AppDomain.CurrentDomain.BaseDirectory;
+        string solutionDir = Directory.GetParent(exePath).Parent.Parent.Parent.FullName;
+        
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            romPath = Path.Combine(solutionDir, "roms");
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            romPath = Path.Combine(solutionDir, "roms");
+        }
+        
+        string[] roms = Directory.GetFiles(romPath, "*.ch8", SearchOption.AllDirectories);
+
+        try
+        {
+            return roms[romID];
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Nonexistant Rom!");
+            return "wrong";
+        }
+        
         
     }
     
     static void DoMergedRender(CPU chip, int scale)
-{
+    {
     SDL.SDL_Init(SDL.SDL_INIT_VIDEO);
     SDL_ttf.TTF_Init();
 
-    // --- Window 1: CHIP-8 Display ---
+    //window 1 
     IntPtr window1 = SDL.SDL_CreateWindow(
         "CHIP-8 Display",
         SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED,
@@ -48,7 +94,7 @@ public static class Program
         SDL.SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
     );
 
-    // --- Window 2: Debug / Text Display ---
+    // window 2 graohics buffer display
     IntPtr window2 = SDL.SDL_CreateWindow(
         "Debug Window",
         SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED,
@@ -70,27 +116,26 @@ public static class Program
 
     while (!quit)
     {
-        // --- CPU cycle timing ---
+        //cpu
         var currentTime = DateTime.Now;
         var dt = (currentTime - lastCycleTime);
         if (dt > TimeSpan.FromMilliseconds(delay))
         {
             lastCycleTime = currentTime;
-            for (int x = 0; x < 11; x++)
+            for (int x = 0; x < 15; x++)
             {
                 chip.CycleCPU();
             }
             
         }
 
-        // Handle SDL events (shared for both windows)
+        // handle SDL events (shared for both windows)
         while (SDL.SDL_PollEvent(out e) != 0)
         {
             if (e.type == SDL.SDL_EventType.SDL_QUIT)
                 quit = true;
         }
-
-        // --- Render CHIP-8 window ---
+        
         SDL.SDL_SetRenderDrawColor(renderer1, 0, 0, 0, 255);
         SDL.SDL_RenderClear(renderer1);
 
@@ -122,8 +167,7 @@ public static class Program
         int startX = 0;
         int startY = 0;
         int lineHeight = 10;
-
-        // Example: Replace with your own debug renderer
+        
         //RenderMemory(chip, bytesPerLine, startX, startY, lineHeight, renderer2, font);
         RenderScreen(chip, renderer2, font ,startX, startY, lineHeight);
 
@@ -388,13 +432,13 @@ public class CPU
         keyMap.Add(SDL.SDL_Keycode.SDLK_2, 1);
         keyMap.Add(SDL.SDL_Keycode.SDLK_3, 2);
         keyMap.Add(SDL.SDL_Keycode.SDLK_4, 4);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_q, 5);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_w, 6);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_e, 7);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_r, 8);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_a, 9);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_s, 10);
-        keyMap.Add(SDL.SDL_Keycode.SDLK_d, 11);
+        keyMap.Add(SDL.SDL_Keycode.SDLK_w, 5); //was q
+        keyMap.Add(SDL.SDL_Keycode.SDLK_q, 6); //was w
+        keyMap.Add(SDL.SDL_Keycode.SDLK_a, 7); //was e
+        keyMap.Add(SDL.SDL_Keycode.SDLK_s, 8); //was r
+        keyMap.Add(SDL.SDL_Keycode.SDLK_d, 9); //was a
+        keyMap.Add(SDL.SDL_Keycode.SDLK_r, 10); //was s
+        keyMap.Add(SDL.SDL_Keycode.SDLK_e, 11); //was d
         keyMap.Add(SDL.SDL_Keycode.SDLK_f, 12);
         keyMap.Add(SDL.SDL_Keycode.SDLK_z, 13);
         keyMap.Add(SDL.SDL_Keycode.SDLK_x, 14);
