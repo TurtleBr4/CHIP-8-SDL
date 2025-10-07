@@ -168,7 +168,7 @@ public static class Program
         }
         SDL.SDL_RenderPresent(renderer1);
 
-        // --- Render Debug window ---
+        // debug render
         SDL.SDL_SetRenderDrawColor(renderer2, 0, 0, 0, 255);
         SDL.SDL_RenderClear(renderer2);
 
